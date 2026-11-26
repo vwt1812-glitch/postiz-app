@@ -1,0 +1,95 @@
+name: Buffer checks and multiarch images
+on:
+  pull_request:
+  push:
+    branches: [main, buffer-integration]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: buffer-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: buffer_test
+          POSTGRES_PASSWORD: isolated_test_only
+          POSTGRES_DB: buffer_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://buffer_test:isolated_test_only@localhost:5432/buffer_test
+      BUFFER_TEST_DATABASE: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.4
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prisma db push --schema libraries/nestjs-libraries/src/database/prisma/schema.prisma
+      - run: pnpm test:buffer
+      - run: pnpm exec tsc --noEmit -p tests/buffer/tsconfig.json
+  image:
+    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.dev
+          platforms: linux/${{ matrix.arch }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.image.outputs.name }}:buffer-${{ github.sha }}-${{ matrix.arch }}
+          build-args: NEXT_PUBLIC_VERSION=buffer-${{ github.sha }}
+          cache-from: type=gha,scope=buffer-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=buffer-${{ matrix.arch }}
+  manifest:
+    if: github.event_name != 'pull_request'
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - shell: bash
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:buffer-${REVISION}"
+          docker buildx imagetools create -t "$image" "$image-amd64" "$image-arm64"
+          docker buildx imagetools inspect "$image"

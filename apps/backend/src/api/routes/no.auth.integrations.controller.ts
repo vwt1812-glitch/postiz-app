@@ -8,6 +8,7 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
+import { assertBufferWorkspace, isBufferProvider } from '@gitroom/nestjs-libraries/integrations/buffer/buffer.client';
 import { Throttle } from '@nestjs/throttler';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 import { ConnectIntegrationDto } from '@gitroom/nestjs-libraries/dtos/integrations/connect.integration.dto';
@@ -77,6 +78,16 @@ export class NoAuthIntegrationsController {
     const organization = await ioRedis.get(`organization:${body.state}`);
     if (!organization) {
       throw new Error('Organization not found');
+    }
+
+    if (isBufferProvider(integration)) {
+      assertBufferWorkspace(organization);
+      // Custom-field callbacks normally skip the OAuth verifier. Buffer connections
+      // still require a single-use state issued to the authorized workspace.
+      if (!(await ioRedis.getdel(`login:${body.state}`))) {
+        throw new HttpException('Connection expired or already used', 400);
+      }
+      await ioRedis.del(`organization:${body.state}`);
     }
 
     const org = await this._organizationService.getOrgById(organization);

@@ -1,4 +1,5 @@
 'use client';
+import { BufferChannelSelect } from './buffer.channel.select';
 
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import React, { FC, useCallback, useMemo } from 'react';
@@ -238,7 +239,7 @@ export const CustomVariables: FC<{
           className="gap-[8px] flex flex-col pt-[10px]"
           onSubmit={methods.handleSubmit(submit)}
         >
-          {variables.map((variable) => (
+          {['x-buffer', 'tiktok-buffer'].includes(identifier) ? <BufferChannelSelect identifier={identifier} /> : variables.map((variable) => (
             <div key={variable.key}>
               {variable.hint ? (
                 <div className="flex flex-col gap-[6px]">

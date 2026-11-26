@@ -8,6 +8,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Permanent delivery tombstones. Deliberately not cascaded when posts are deleted.
+model BufferDelivery {
+  id           String   @id
+  requestHash  String
+  bufferPostId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model Organization {
   id                  String               @id @default(uuid())
   name                String

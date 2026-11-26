@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { assertBufferWorkspace, BufferClient, isBufferProvider } from '@gitroom/nestjs-libraries/integrations/buffer/buffer.client';
 import {
   Body,
   Controller,
@@ -48,6 +49,19 @@ export class IntegrationsController {
     private _postService: PostsService,
     private _refreshIntegrationService: RefreshIntegrationService
   ) {}
+
+  @Get('/buffer/channels/:provider')
+  @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
+  async bufferChannels(@GetOrgFromRequest() org: Organization, @Param('provider') provider: string) {
+    assertBufferWorkspace(org.id);
+    if (!isBufferProvider(provider)) return [];
+    const service = provider === 'x-buffer' ? 'twitter' : 'tiktok';
+    try {
+      return (await new BufferClient().channels()).filter(c => c.service === service)
+        .map(c => ({ id: c.id, name: c.displayName || c.name, handle: c.name,
+          available: !c.isDisconnected && !c.isLocked && !c.isQueuePaused }));
+    } catch { return { error: 'Buffer channels could not be loaded. Check the server configuration.' }; }
+  }
 
   @Post('/provider/:id/connect')
   @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
@@ -247,6 +261,8 @@ export class IntegrationsController {
     const integrationProvider = this._integrationManager.getSocialIntegration(
       migrateTo || integration
     );
+
+    if (isBufferProvider(migrateTo || integration)) assertBufferWorkspace(org.id);
 
     if (integrationProvider.externalUrl && !externalUrl) {
       throw new Error('Missing external url');

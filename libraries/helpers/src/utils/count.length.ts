@@ -6,7 +6,7 @@ export const textSlicer = (
   end: number,
   text: string
 ): { start: number; end: number } => {
-  if (integrationType !== 'x') {
+  if (integrationType !== 'x' && integrationType !== 'x-buffer') {
     return {
       start: 0,
       end,
@@ -39,7 +39,7 @@ export const weightedLength = (text: string): number => {
 };
 
 export const countLength = (integrationType: string, text: string): number => {
-  if (integrationType === 'x') {
+  if (integrationType === 'x' || integrationType === 'x-buffer') {
     return weightedLength(text);
   }
 

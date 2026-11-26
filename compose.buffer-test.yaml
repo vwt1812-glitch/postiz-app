@@ -1,0 +1,77 @@
+name: postiz-buffer-isolated
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: buffer_test
+      POSTGRES_PASSWORD: isolated_local_test_only
+      POSTGRES_DB: buffer_test
+    volumes: [buffer-db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U buffer_test']
+      interval: 5s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes: [buffer-redis:/data]
+  temporal-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: isolated_temporal_only
+    volumes: [buffer-temporal-db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U temporal']
+      interval: 5s
+      retries: 20
+  temporal:
+    image: temporalio/auto-setup:1.28.1
+    environment:
+      DB: postgres12
+      DB_PORT: '5432'
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: isolated_temporal_only
+      POSTGRES_SEEDS: temporal-db
+      ENABLE_ES: 'false'
+      TEMPORAL_NAMESPACE: default
+    depends_on:
+      temporal-db:
+        condition: service_healthy
+  postiz:
+    image: ${BUFFER_TEST_IMAGE:?Set BUFFER_TEST_IMAGE to the immutable tested Buffer image tag}
+    ports: ['127.0.0.1:5100:5000']
+    env_file: .env.buffer
+    environment:
+      DATABASE_URL: postgresql://buffer_test:isolated_local_test_only@postgres:5432/buffer_test
+      REDIS_URL: redis://redis:6379
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      MAIN_URL: http://localhost:5100
+      FRONTEND_URL: http://localhost:5100
+      NEXT_PUBLIC_BACKEND_URL: http://localhost:5100/api
+      BACKEND_INTERNAL_URL: http://localhost:3000
+      STORAGE_PROVIDER: local
+      UPLOAD_DIRECTORY: /uploads
+      NEXT_PUBLIC_UPLOAD_DIRECTORY: /uploads
+      DISABLE_REGISTRATION: 'true'
+      IS_GENERAL: 'true'
+      BUFFER_API_KEY_FILE: /run/secrets/buffer-api-key
+    volumes: [buffer-uploads:/uploads, buffer-config:/config]
+    secrets: [buffer-api-key]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      temporal:
+        condition: service_started
+secrets:
+  buffer-api-key:
+    file: .secrets/buffer-api-key
+volumes:
+  buffer-db:
+  buffer-redis:
+  buffer-temporal-db:
+  buffer-uploads:
+  buffer-config:

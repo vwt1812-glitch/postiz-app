@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import { XBufferProvider } from './social/x.buffer.provider';
+import { TiktokBufferProvider } from './social/tiktok.buffer.provider';
 
 import { Injectable } from '@nestjs/common';
 import { XProvider } from '@gitroom/nestjs-libraries/integrations/social/x.provider';
@@ -40,6 +42,8 @@ import { MeweProvider } from '@gitroom/nestjs-libraries/integrations/social/mewe
 import { TumblrProvider } from '@gitroom/nestjs-libraries/integrations/social/tumblr.provider';
 
 export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
+  new XBufferProvider(),
+  new TiktokBufferProvider(),
   new XProvider(),
   new LinkedinProvider(),
   new LinkedinPageProvider(),

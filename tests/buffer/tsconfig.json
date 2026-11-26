@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "incremental": false },
+  "include": [
+    "../../libraries/nestjs-libraries/src/integrations/buffer/**/*.ts",
+    "../../libraries/nestjs-libraries/src/integrations/social/x.buffer.provider.ts",
+    "../../libraries/nestjs-libraries/src/integrations/social/tiktok.buffer.provider.ts"
+  ]
+}
