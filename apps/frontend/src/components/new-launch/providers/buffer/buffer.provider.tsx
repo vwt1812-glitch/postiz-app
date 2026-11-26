@@ -10,6 +10,6 @@ const Settings = () => {
   </div>;
 };
 const common = { postComment: PostComment.POST, comments: false as const,
-  minimumCharacters: [], SettingsComponent: Settings, dto: BufferDto };
+  minimumCharacters: [] as [], SettingsComponent: Settings, dto: BufferDto };
 export const XBufferComposer = withProvider({ ...common, maximumCharacters: 280 });
 export const TiktokBufferComposer = withProvider({ ...common, maximumCharacters: 2200 });
