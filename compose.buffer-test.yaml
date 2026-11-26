@@ -39,6 +39,7 @@ services:
       temporal-db:
         condition: service_healthy
   postiz:
+    restart: on-failure:3
     image: ${BUFFER_TEST_IMAGE:?Set BUFFER_TEST_IMAGE to the immutable tested Buffer image tag}
     ports: ['127.0.0.1:5100:5000']
     env_file: .env.buffer

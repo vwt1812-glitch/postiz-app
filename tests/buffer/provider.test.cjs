@@ -99,14 +99,25 @@ test('workspace, media, polls, unsupported settings and limits reject before mut
   assert.throws(() => assertBufferWorkspace('attacker'));
   const f = fixture('tiktok');
   for (const media of [[], [{ path: 'https://media.example.org/a.jpg' }], [{ path: 'https://private.example.org/a.mp4' }], [{ path: 'http://media.example.org/a.mp4' }], [{ path: 'https://media.example.org/a.mp4?token=secret' }]]) {
-    await assert.rejects(() => f.provider.postPending('t1', '', [{ ...f.post, media }], integration));
+    await assert.rejects(() => f.provider.postPending('t1', '', [{ ...f.post, media }], { ...integration, internalId: 't1' }));
   }
-  await assert.rejects(() => f.provider.postPending('t1', '', [{ ...f.post, settings: { privacy_level: 'PUBLIC_TO_EVERYONE' } }], integration));
+  await assert.rejects(() => f.provider.postPending('t1', '', [{ ...f.post, settings: { privacy_level: 'PUBLIC_TO_EVERYONE' } }], { ...integration, internalId: 't1' }));
   const x = fixture();
   await assert.rejects(() => x.provider.postPending('x1', '', [{ ...x.post, message: 'a'.repeat(281) }], integration));
   await assert.rejects(() => x.provider.postPending('x1', '', [{ ...x.post, poll: {} }], integration));
   await assert.rejects(() => x.provider.post(), /pending-status/);
   assert.equal(f.calls.length + x.calls.length, 0);
+});
+test('channel mismatch, invalid disclosure and inaccessible media cannot start a mutation', async () => {
+  const f = fixture('tiktok');
+  await assert.rejects(() => f.provider.postPending('t1', '', [f.post], integration), /mismatch/);
+  await assert.rejects(() => f.provider.postPending('t1', '', [{ ...f.post, settings: { isAiGenerated: 'false' } }], { ...integration, internalId: 't1' }), /boolean/);
+  const originalFetch = global.fetch;
+  try {
+    global.fetch = async () => ({ ok: false, headers: new Headers({ 'content-type': 'text/html' }) });
+    await assert.rejects(() => f.provider.postPending('t1', '', [f.post], { ...integration, internalId: 't1' }), /publicly reachable/);
+  } finally { global.fetch = originalFetch; }
+  assert.equal(f.calls.length, 0);
 });
 test('TikTok video payload and AI disclosure use documented asset and metadata types', async () => {
   const f = fixture('tiktok'); f.post.settings.isAiGenerated = true;

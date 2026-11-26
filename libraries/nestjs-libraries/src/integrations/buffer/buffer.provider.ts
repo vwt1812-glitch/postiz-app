@@ -62,8 +62,11 @@ export abstract class BufferProvider extends SocialAbstract implements SocialPro
 
   async postPending(id: string, _token: string, posts: PostDetails<BufferDto>[], integration: Integration): Promise<PostResponse[]> {
     assertBufferWorkspace(integration.organizationId);
+    if (id !== integration.internalId) throw this.failure('Buffer integration channel mismatch.');
     if (posts.length !== 1) throw this.failure('Buffer accepts one post per delivery.');
     const post = posts[0];
+    if (!post.message.trim() && !post.media?.length) throw this.failure('A Buffer post needs text or media.');
+    if (post.settings?.isAiGenerated !== undefined && typeof post.settings.isAiGenerated !== 'boolean') throw this.failure('AI disclosure must be a boolean.');
     const valid = await this.checkValidity(posts.map(p => p.media || []));
     if (valid !== true) throw this.failure(valid);
     if ((this.service === 'twitter' ? weightedLength(post.message) : post.message.length) > this.maxLength()) throw this.failure('The post exceeds the channel character limit.');
