@@ -9,7 +9,7 @@ Die am 26.11.2026 ausschließlich lesend geprüfte bestehende Installation melde
 Ihre Datei `/app/version.txt` enthält weiterhin `v1.47.0` und identifiziert den Build nicht zuverlässig. Das Image hat keine Commit-Labels. Der genaue Quellcommit der Installation ist deshalb nicht belegt.
 
 Die bestehende Installation, ihre Datenbanken, Volumes und der laufende Social-Bot wurden nicht umgestellt.
-Die tatsächliche Buffer-Authentifizierung und Verfügbarkeit der drei Nutzerkanäle sind noch nicht geprüft: Der Nutzer hat den Key bisher ausschließlich kopiert und noch nicht lokal hinterlegt.
+Am 26.11.2026 wurde der Key vom Nutzer lokal verdeckt eingegeben. Die ausschließlich lesende Buffer-Prüfung war erfolgreich: genau zwei X-Kanäle und ein TikTok-Kanal, alle verbunden, nicht gesperrt und nicht pausiert. Ein echter Veröffentlichungsversuch steht weiterhin aus.
 Es wurden keine echten Buffer-Beiträge erstellt. Erst nach gesonderter Zustimmung darf ein öffentlicher Testbeitrag veröffentlicht werden.
 
 ## Verhalten
@@ -43,13 +43,13 @@ $env:BUFFER_API_KEY_FILE = (Resolve-Path .secrets/buffer-api-key).Path
 node scripts/buffer-preflight.mjs
 ```
 
-Dieses Skript führt ausschließlich Organisations- und Kanalabfragen durch. Es zeigt Kanal-IDs und Verfügbarkeitsmerkmale, aber keinen Schlüssel. Die gelisteten zwei X- und ein TikTok-Kanal müssen anschließend über `BUFFER_ORGANIZATION_ID` und `BUFFER_CHANNEL_IDS` freigegeben werden.
+Dieses Skript führt ausschließlich Organisations- und Kanalabfragen durch. Es zeigt Kanal-IDs und Verfügbarkeitsmerkmale, aber keinen Schlüssel. Die gelisteten zwei X- und ein TikTok-Kanal müssen anschließend über `BUFFER_ORGANIZATION_ID` und `BUFFER_CHANNEL_IDS` freigegeben werden. Mit vollständigen lokalen Abhängigkeiten prüft `node scripts/buffer-verify-readonly.cjs` zusätzlich die echten Provider-Anmeldungen und Statusabfragen. Diese Prüfung war für alle drei Nutzerkanäle erfolgreich. Beide X-Kanäle und TikTok melden Planungsrechte; TikTok verwendet standardmäßig keine manuellen Erinnerungen. Eine vorhandene Postiz-MP4 war ohne Authentifizierung mit HTTP 200 und `video/mp4` erreichbar.
 
 ## Isolierte Installation
 
 `.env.buffer.example` nach `.env.buffer` kopieren. Ein neues Test-JWT-Geheimnis setzen und einen tatsächlich erfolgreich gebauten Commit-Tag als `BUFFER_TEST_IMAGE` verwenden.
 `docker compose --env-file .env.buffer -f compose.buffer-test.yaml up -d` erzeugt ausschließlich neue Ressourcen im Projekt `postiz-buffer-isolated`. Keine Dienste außer der Weboberfläche auf `127.0.0.1:5100` werden am Host veröffentlicht. Die Datei darf nicht mit produktiven Compose-Dateien kombiniert werden.
-Vor der ersten Anmeldung Registrierung in dieser Testkonfiguration vorübergehend aktivieren und danach wieder deaktivieren. Die erzeugte Test-Organisations-ID als `BUFFER_POSTIZ_ORGANIZATION_ID` setzen und den Testcontainer neu erstellen. Die neue Tabelle wird ausschließlich in der neuen Testdatenbank angelegt.
+Vor der ersten Anmeldung `BUFFER_TEST_DISABLE_REGISTRATION=false` in `.env.buffer` setzen und nach der Testregistrierung wieder auf `true` stellen. Die erzeugte Test-Organisations-ID als `BUFFER_POSTIZ_ORGANIZATION_ID` setzen und den Testcontainer neu erstellen. Die neue Tabelle wird ausschließlich in der neuen Testdatenbank angelegt. `NOT_SECURED=true` dient ausschließlich dieser lokalen HTTP-Testoberfläche.
 
 Die Browser-Oberfläche kann lokal geprüft werden; der End-to-End-Medienversand erfordert zusätzlich einen öffentlichen Test-Medienhost. Für Tests niemals Produktionsdatenbanken importieren oder bestehende Container ersetzen.
 
@@ -61,9 +61,9 @@ Kanalzuordnungen müssen die neuen Postiz-Kanal-IDs verwenden; eine automatische
 ## Prüfen, bauen und Updates
 
 `pnpm test:buffer` prüft mit simulierten API-Antworten Kanaltrennung, Status, Medien, Zugriffsgrenzen und unklare Zustellversuche. Der PostgreSQL-Konkurrenztest läuft mit `BUFFER_TEST_DATABASE=true` ausschließlich gegen eine leere Testdatenbank. GitHub Actions stellt diese selbst bereit.
-Der Workflow `buffer-ci.yml` führt Tests, eine Typprüfung und vollständige Docker-Builds auf nativen AMD64- und ARM64-Runnern durch. Nur erfolgreiche Push-/manuell gestartete Builds veröffentlichen Commit-Tags in der eigenen GHCR-Ablage; Pull Requests veröffentlichen kein Image. Es gibt keinen Deployment-Schritt und kein Überschreiben eines produktiven `latest`-Tags.
+Der Workflow `buffer-ci.yml` führt Tests, eine Typprüfung und vollständige Docker-Builds auf nativen AMD64- und ARM64-Runnern durch. Anschließend werden die kompilierten Provider und die native Bildbibliothek in jedem Image ohne Netzwerkzugriffe oder Datenbankänderungen geprüft. Push-/manuell gestartete Builds veröffentlichen Commit-Tags in der eigenen GHCR-Ablage; Pull Requests veröffentlichen kein Image. Erst nach erfolgreicher Prüfung beider Architekturen entsteht der gemeinsame Multiarch-Tag. Es gibt keinen Deployment-Schritt und kein Überschreiben eines produktiven `latest`-Tags.
 
-`buffer-upstream-sync.yml` prüft täglich Upstream und erstellt einen Review-PR. Konflikte stoppen den Workflow. Tests und beide Docker-Builds werden explizit gestartet, weil durch `GITHUB_TOKEN` eröffnete PRs keine weiteren Workflows auslösen. GitHub muss dem Actions-Token das Erstellen von Pull Requests erlauben. Es gibt kein Auto-Merge und keine automatische Installation.
+`buffer-upstream-sync.yml` prüft täglich Upstream und erstellt einen Review-PR. Konflikte stoppen den Workflow. Tests und beide Docker-Builds werden explizit gestartet, weil durch `GITHUB_TOKEN` eröffnete PRs keine weiteren Workflows auslösen. Die dafür benötigte kombinierte GitHub-Berechtigung zum Erstellen und Genehmigen von PRs wurde nach ausdrücklicher Nutzerzustimmung ausschließlich im eigenen Fork aktiviert. Der Workflow selbst genehmigt keine PRs. Es gibt kein Auto-Merge und keine automatische Installation.
 
 ## Offizielle API-Quellen
 

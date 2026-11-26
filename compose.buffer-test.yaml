@@ -55,7 +55,8 @@ services:
       STORAGE_PROVIDER: local
       UPLOAD_DIRECTORY: /uploads
       NEXT_PUBLIC_UPLOAD_DIRECTORY: /uploads
-      DISABLE_REGISTRATION: 'true'
+      DISABLE_REGISTRATION: ${BUFFER_TEST_DISABLE_REGISTRATION:-true}
+      NOT_SECURED: 'true'
       IS_GENERAL: 'true'
       BUFFER_API_KEY_FILE: /run/secrets/buffer-api-key
     volumes: [buffer-uploads:/uploads, buffer-config:/config]
