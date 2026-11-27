@@ -44,9 +44,19 @@ export abstract class BufferProvider extends SocialAbstract implements SocialPro
     return url.href;
   }
 
-  override async checkValidity(posts: Array<{ path: string }[]>) {
+  override async checkValidity(posts: Array<{ path: string; thumbnail?: string; thumbnailTimestamp?: number }[]>) {
     if (posts.length !== 1) return 'Buffer replies and threads are not supported by this provider.';
     const media = posts[0] || [];
+    if (this.service === 'tiktok') {
+      for (const item of media) {
+        if (item.thumbnailTimestamp != null && (!Number.isInteger(item.thumbnailTimestamp) || item.thumbnailTimestamp < 0 || item.thumbnailTimestamp > 2147483647)) {
+          return 'TikTok cover frame must be a non-negative millisecond timestamp.';
+        }
+        if (item.thumbnail && item.thumbnailTimestamp == null) {
+          return 'TikTok via Buffer requires a frame from the video as its cover. Choose Select Frame instead of a gallery image.';
+        }
+      }
+    }
     if (this.service === 'tiktok' && (media.length !== 1 || !/\.mp4$/i.test(new URL(media[0].path, process.env.FRONTEND_URL).pathname))) {
       return 'TikTok via Buffer currently requires exactly one MP4 video.';
     }
@@ -76,7 +86,10 @@ export abstract class BufferProvider extends SocialAbstract implements SocialPro
     await this.client.channel(id, this.service);
     const assets = (post.media || []).map(m => {
       const url = this.mediaUrl(m.path);
-      return /\.(mp4|mov)$/i.test(new URL(url).pathname) ? { video: { url } } : { image: { url } };
+      return /\.(mp4|mov)$/i.test(new URL(url).pathname) ? { video: { url,
+        ...(this.service === 'tiktok' && m.thumbnailTimestamp != null
+          ? { metadata: { thumbnailOffset: m.thumbnailTimestamp } } : {}),
+      } } : { image: { url } };
     });
     // Probe without credentials, redirects or downloads. DNS and IP checks use upstream's SSRF guard.
     for (const asset of assets) {

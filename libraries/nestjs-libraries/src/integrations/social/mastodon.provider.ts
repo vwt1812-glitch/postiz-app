@@ -19,6 +19,7 @@ import { Integration } from '@prisma/client';
 import { number, string } from 'yup';
 import FormDataUpload from 'form-data';
 import { PassThrough, Readable } from 'stream';
+import { loadMastodonThumbnail } from './mastodon.thumbnail';
 
 // Travels through the workflow history between postPending, checkPostStatus
 // and finalizePost - keep it small JSON (the instance url, media ids and the
@@ -171,13 +172,15 @@ export class MastodonProvider extends SocialAbstract implements SocialProvider {
     instanceUrl: string,
     fileUrl: string,
     accessToken: string,
-    alt?: string
+    alt?: string,
+    thumbnailUrl?: string
   ) {
     // The file is streamed straight from storage into the Mastodon upload
     // request instead of being buffered in memory. Both requests keep the
     // SSRF-safe dispatcher because the URLs are not fully under our control,
     // and the whole request is rebuilt per attempt by runStreamedUpload since
     // a consumed stream can't be replayed.
+    const thumbnail = await loadMastodonThumbnail(thumbnailUrl, getSsrfSafeDispatcher());
     const upload = async (version: 'v1' | 'v2') => {
       const fileResponse = await fetch(fileUrl, {
         // identity encoding so content-length matches the streamed bytes
@@ -193,6 +196,11 @@ export class MastodonProvider extends SocialAbstract implements SocialProvider {
       );
 
       const form = new FormDataUpload();
+      if (thumbnail) {
+        form.append('thumbnail', thumbnail.data, {
+          filename: thumbnail.filename, contentType: thumbnail.contentType, knownLength: thumbnail.data.length,
+        });
+      }
       form.append('file', Readable.fromWeb(fileResponse.body as any), {
         filename: fileUrl.split('/').pop()?.split('?')[0] || 'file',
         ...(contentLength ? { knownLength: contentLength } : {}),
@@ -267,7 +275,7 @@ export class MastodonProvider extends SocialAbstract implements SocialProvider {
     // created by finalizePost, so nothing here is irreversible.
     const uploadFiles = await Promise.all(
       firstPost?.media?.map((media) =>
-        this.uploadFile(url, media.path, accessToken, media.alt)
+        this.uploadFile(url, media.path, accessToken, media.alt, /\.(mp4|mov|webm)(?:[?#]|$)/i.test(media.path) ? media.thumbnail : undefined)
       ) || []
     );
 

@@ -311,6 +311,12 @@ export const MediaComponentInner: FC<{
     | undefined;
 }> = (props) => {
   const { onClose, onSelect, media } = props;
+  const frameOnly = useLaunchStore((state) => {
+    const channels = state.selectedIntegrations.filter((p) =>
+      state.current === 'global' || p.integration.id === state.current
+    );
+    return channels.length > 0 && channels.every((p) => p.integration.identifier === 'tiktok-buffer');
+  });
   const setActivateExitButton = useLaunchStore((e) => e.setActivateExitButton);
   const newFetch = useFetch();
   const modals = useModals();
@@ -322,7 +328,7 @@ export const MediaComponentInner: FC<{
     props.media?.thumbnail || null
   );
   const [thumbnailTimestamp, setThumbnailTimestamp] = useState<number | null>(
-    props.media?.thumbnailTimestamp || null
+    props.media?.thumbnailTimestamp ?? null
   );
 
   useEffect(() => {
@@ -387,6 +393,7 @@ export const MediaComponentInner: FC<{
               <div className="flex flex-col">
                 <div className="flex flex-col space-y-2">
                   <span className="text-sm text-textColor">Thumbnail:</span>
+                  {frameOnly && <p className="text-sm text-textColor">Choose a frame from the video for the TikTok cover.</p>}
                   {(newThumbnail || thumbnail) && (
                     <img
                       src={newThumbnail || thumbnail}
@@ -406,6 +413,7 @@ export const MediaComponentInner: FC<{
                     Select Frame
                   </button>
                   <button
+                    hidden={frameOnly}
                     disabled={loading}
                     onClick={() =>
                       modals.openModal({
@@ -441,6 +449,7 @@ export const MediaComponentInner: FC<{
                       onClick={() => {
                         setNewThumbnail(null);
                         setThumbnail(null);
+                        setThumbnailTimestamp(null);
                       }}
                       className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-opacity-80 transition-all flex-1 border border-red-700 whitespace-nowrap"
                     >

@@ -1,5 +1,12 @@
 # Buffer-Fork für das Stadtratsbüro
 
+## Thumbnail-Update vom 27.11.2026
+
+Die Installation auf dem Pi erfolgte am 26.11.2026. Der Nutzer hat anschließend erfolgreiche Veröffentlichungen über beide Buffer-Provider bestätigt.
+TikTok übernimmt jetzt `thumbnailTimestamp` als `assets[].video.metadata.thumbnailOffset` in Millisekunden, einschließlich 0. Eine separate Bilddatei ohne Framezeit wird bei TikTok vor dem Speichern abgelehnt; Buffer unterstützt dafür nur Videoframes. X erhält keine nicht unterstützten Thumbnail-Metadaten.
+Mastodon erhält bei Videobeiträgen das gewählte JPEG-/PNG-Cover als Multipart-Thumbnail (maximal 2 MiB, begrenzter Download mit SSRF-Prüfung). Der Bot kann diese Funktion über `POSTIZ_MASTODON_THUMBNAILS=ja` nutzen. Die Kanalliste zeigt keine Build-ID mehr.
+Quelle: https://developers.buffer.com/examples/create-video-post.html und https://docs.joinmastodon.org/methods/media/
+
 ## Stand und Grenzen
 
 Eigener Fork: https://github.com/vwt1812-glitch/postiz-app

@@ -125,6 +125,34 @@ test('TikTok video payload and AI disclosure use documented asset and metadata t
   assert.equal(f.calls[0].variables.input.assets[0].video.url, 'https://media.example.org/video.mp4');
   assert.equal(f.calls[0].variables.input.metadata.tiktok.isAiGenerated, true);
 });
+
+test('TikTok cover frame uses Buffer millisecond metadata, including the first frame', async () => {
+  for (const timestamp of [0, 2300]) {
+    const f = fixture('tiktok');
+    f.post.media[0].thumbnailTimestamp = timestamp;
+    f.post.media[0].thumbnail = 'https://media.example.org/frame.jpg';
+    await f.provider.postPending('t1', '', [f.post], { ...integration, internalId: 't1' });
+    const video = f.calls[0].variables.input.assets[0].video;
+    assert.equal(video.metadata.thumbnailOffset, timestamp);
+    assert.equal(video.thumbnailUrl, undefined);
+  }
+});
+
+test('invalid TikTok frame or gallery-only cover is rejected before creating a delivery', async () => {
+  for (const media of [
+    { thumbnail: 'https://media.example.org/gallery.jpg' },
+    ...[-1, 0.5, '0', 2147483648].map(thumbnailTimestamp => ({ thumbnailTimestamp })),
+  ]) {
+    const f = fixture('tiktok');
+    Object.assign(f.post.media[0], media);
+    await assert.rejects(() => f.provider.postPending('t1', '', [f.post], { ...integration, internalId: 't1' }));
+    assert.equal(f.calls.length, 0);
+  }
+  const x = fixture();
+  x.post.media = [{ path: 'https://media.example.org/video.mp4', thumbnailTimestamp: 0 }];
+  await x.provider.postPending('x1', '', [x.post], integration);
+  assert.equal(x.calls[0].variables.input.assets[0].video.metadata, undefined);
+});
 test('client uses fixed GraphQL endpoint and redacts remote errors without retry', async () => {
   let count = 0;
   const client = new BufferClient(async (url, options) => {

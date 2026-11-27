@@ -5,7 +5,6 @@ import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.v
 const Settings = () => {
   const form = useSettings();
   return <div className="flex flex-col gap-3">
-    <p>Postiz schedules this post. Buffer publishes it automatically at the scheduled time. Delivery is confirmed after Buffer reports it as sent.</p>
     <label><input type="checkbox" {...form.register('isAiGenerated')} /> Disclose AI-generated content</label>
   </div>;
 };
